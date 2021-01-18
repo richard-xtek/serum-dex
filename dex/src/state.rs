@@ -938,6 +938,7 @@ enum EventFlag {
     Out = 0x2,
     Bid = 0x4,
     Maker = 0x8,
+    ReleaseFunds = 0x10,
 }
 
 impl EventFlag {
@@ -1026,6 +1027,7 @@ impl Event {
 
             EventView::Out {
                 side,
+                release_funds,
                 native_qty_unlocked,
                 native_qty_still_locked,
                 order_id,
@@ -1033,7 +1035,12 @@ impl Event {
                 owner_slot,
                 client_order_id,
             } => {
-                let event_flags = (EventFlag::from_side(side) | EventFlag::Out).bits();
+                let release_funds_flag = if release_funds {
+                    BitFlags::from_flag(EventFlag::ReleaseFunds).bits()
+                } else {
+                    0
+                };
+                let event_flags = (EventFlag::from_side(side) | EventFlag::Out).bits() | release_funds_flag;
                 Event {
                     event_flags,
                     owner_slot,
@@ -1082,11 +1089,12 @@ impl Event {
         }
         let allowed_flags = {
             use EventFlag::*;
-            Out | Bid | Maker
+            Out | Bid | ReleaseFunds
         };
         check_assert!(allowed_flags.contains(flags))?;
         Ok(EventView::Out {
             side,
+            release_funds: flags.contains(EventFlag::ReleaseFunds),
             native_qty_unlocked: self.native_qty_released,
             native_qty_still_locked: self.native_qty_paid,
 
@@ -1115,6 +1123,7 @@ pub enum EventView {
     },
     Out {
         side: Side,
+        release_funds: bool,
         native_qty_unlocked: u64,
         native_qty_still_locked: u64,
         order_id: u128,
@@ -2312,32 +2321,7 @@ impl State {
     }
 
     #[cfg(feature = "program")]
-    fn process_send_take(args: account_parser::SendTakeArgs) -> DexResult {
-        let account_parser::SendTakeArgs {
-            instruction: &SendTakeInstruction {
-                side,
-                limit_price,
-                max_coin_qty,
-                max_native_pc_qty_including_fees,
-                min_coin_qty,
-                min_native_pc_qty,
-                limit,
-            },
-            signer,
-            mut req_q,
-            mut event_q,
-            fee_tier,
-            coin_wallet,
-            pc_wallet,
-            coin_vault,
-            pc_vault,
-            mut order_book_state,
-            spl_token_program,
-        } = args;
-
-        check_assert_eq!(req_q.header.count(), 0)?;
-
-        // first match the order, then use filled quantity to pull funds in
+    fn process_send_take(_args: account_parser::SendTakeArgs) -> DexResult {
         unimplemented!()
     }
 
@@ -2586,7 +2570,7 @@ impl State {
                             open_orders.native_coin_total += native_qty_received;
                             open_orders.native_coin_free += native_qty_received;
 
-                            if maker {
+                            if maker { // TODO redundant, remove after proceeds logic is written
                                 open_orders.native_pc_free += native_fee_or_rebate;
                             }
                         }
@@ -2610,6 +2594,7 @@ impl State {
                 }
                 EventView::Out {
                     side,
+                    release_funds,
                     native_qty_unlocked,
                     native_qty_still_locked,
                     order_id: _,
@@ -2621,13 +2606,17 @@ impl State {
 
                     match side {
                         Side::Bid => {
-                            open_orders.native_pc_free += native_qty_unlocked;
+                            if release_funds {
+                                open_orders.native_pc_free += native_qty_unlocked;
+                            }
                             check_assert!(
                                 open_orders.native_pc_free <= open_orders.native_pc_total
                             )?;
                         }
                         Side::Ask => {
-                            open_orders.native_coin_free += native_qty_unlocked;
+                            if release_funds {
+                                open_orders.native_coin_free += native_qty_unlocked;
+                            }
                             check_assert!(
                                 open_orders.native_coin_free <= open_orders.native_coin_total
                             )?;
@@ -2770,7 +2759,45 @@ impl State {
         };
         let mut limit = std::u16::MAX; // TODO get this value from somewhere
         order_book_state.process_orderbook_request(&request, &mut event_q, &mut proceeds, &mut limit)?;
-        // TODO do something with proceeds
+
+        {
+            let coin_lot_size = order_book_state.market_state.coin_lot_size;
+
+            let RequestProceeds {
+                coin_unlocked,
+                coin_credit,
+
+                native_pc_unlocked,
+                native_pc_credit,
+
+                coin_debit,
+                native_pc_debit,
+            } = proceeds;
+
+            let native_coin_unlocked = coin_unlocked.checked_mul(coin_lot_size).unwrap();
+            let native_coin_credit = coin_credit.checked_mul(coin_lot_size).unwrap();
+            let native_coin_debit = coin_debit.checked_mul(coin_lot_size).unwrap();
+            
+            open_orders.credit_locked_coin(native_coin_credit);
+            open_orders.unlock_coin(native_coin_credit);
+            open_orders.unlock_coin(native_coin_unlocked);
+
+            open_orders.credit_locked_pc(native_pc_credit);
+            open_orders.unlock_pc(native_pc_credit);
+            open_orders.unlock_pc(native_pc_unlocked);
+
+            open_orders.native_coin_total =
+                open_orders.native_coin_total
+                .checked_sub(native_coin_debit)
+                .unwrap();
+            open_orders.native_pc_total =
+                open_orders.native_pc_total
+                .checked_sub(native_pc_debit)
+                .unwrap();
+            check_assert!(open_orders.native_coin_free <= open_orders.native_coin_total)?;
+            check_assert!(open_orders.native_pc_free <= open_orders.native_pc_total)?;
+        }
+
         Ok(())
     }
 
