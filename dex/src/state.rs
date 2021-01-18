@@ -2641,8 +2641,8 @@ impl State {
         Ok(())
     }
 
-    fn process_match_orders(args: account_parser::MatchOrdersArgs) -> DexResult {
-        Ok(check_assert_eq!(args.req_q.header.count(), 0)?)
+    fn process_match_orders(_args: account_parser::MatchOrdersArgs) -> DexResult {
+        unimplemented!()
     }
 
     #[cfg(feature = "program")]

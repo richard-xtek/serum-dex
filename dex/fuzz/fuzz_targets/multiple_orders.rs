@@ -42,7 +42,6 @@ enum Action {
         owner_id: OwnerId,
         order_id: u128,
     },
-    MatchOrders(u16),
     ConsumeEvents(u16),
     SettleFunds(OwnerId, Option<ReferrerId>),
     SweepFees,
@@ -167,13 +166,6 @@ fn run_actions(actions: Vec<Action>) {
         run_action(action, &market_accounts, &mut owners, &mut referrers, &bump);
         if *VERBOSE >= 4 {
             run_action(
-                Action::MatchOrders(100),
-                &market_accounts,
-                &mut owners,
-                &mut referrers,
-                &bump,
-            );
-            run_action(
                 Action::ConsumeEvents(100),
                 &market_accounts,
                 &mut owners,
@@ -189,7 +181,6 @@ fn run_actions(actions: Vec<Action>) {
             for (slot, order_id) in identity(orders.orders).iter().enumerate() {
                 if *order_id > 0 {
                     if actions.len() % 8 == 0 {
-                        actions.push(Action::MatchOrders(100));
                         actions.push(Action::ConsumeEvents(100));
                     }
                     actions.push(Action::CancelOrder {
@@ -202,7 +193,6 @@ fn run_actions(actions: Vec<Action>) {
         }
     }
 
-    actions.push(Action::MatchOrders(100));
     actions.push(Action::ConsumeEvents(100));
     for (owner_id, owner) in owners.iter().sorted_by_key(|(order_id, _)| *order_id) {
         if owner.open_orders().is_some() {
@@ -487,21 +477,6 @@ fn run_action<'bump>(
             })
             .ok();
         }
-
-        Action::MatchOrders(limit) => process_instruction(
-            market_accounts.market.owner,
-            &[
-                market_accounts.market.clone(),
-                market_accounts.req_q.clone(),
-                market_accounts.event_q.clone(),
-                market_accounts.bids.clone(),
-                market_accounts.asks.clone(),
-                market_accounts.coin_vault.clone(),
-                market_accounts.pc_vault.clone(),
-            ],
-            &MarketInstruction::MatchOrders(limit).pack(),
-        )
-        .unwrap(),
 
         Action::ConsumeEvents(limit) => {
             let mut accounts: Vec<AccountInfo> = owners
