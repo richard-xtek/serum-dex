@@ -34,7 +34,7 @@ use crate::{
         NewOrderInstructionV2, NewOrderInstructionV3, SelfTradeBehavior,
         SendTakeInstruction,
     },
-    matching::{OrderBookState, OrderType, Side},
+    matching::{OrderBookState, OrderType, Side, RequestProceeds},
 };
 
 declare_check_assert_macros!(SourceFileId::State);
@@ -2335,9 +2335,9 @@ impl State {
             spl_token_program,
         } = args;
 
-        //order_book_state.process_requests(&mut req_q, &mut event_q, std::u16::MAX)?;
         check_assert_eq!(req_q.header.count(), 0)?;
 
+        // first match the order, then use filled quantity to pull funds in
         unimplemented!()
     }
 
@@ -2581,7 +2581,7 @@ impl State {
                     client_order_id,
                 } => {
                     match side {
-                        Side::Bid => {
+                        Side::Bid if maker => {
                             open_orders.native_pc_total -= native_qty_paid;
                             open_orders.native_coin_total += native_qty_received;
                             open_orders.native_coin_free += native_qty_received;
@@ -2590,11 +2590,12 @@ impl State {
                                 open_orders.native_pc_free += native_fee_or_rebate;
                             }
                         }
-                        Side::Ask => {
+                        Side::Ask if maker => {
                             open_orders.native_coin_total -= native_qty_paid;
                             open_orders.native_pc_total += native_qty_received;
                             open_orders.native_pc_free += native_qty_received;
                         }
+                        _ => ()
                     };
                     if !maker {
                         let referrer_rebate = fees::referrer_rebate(native_fee_or_rebate);
@@ -2672,7 +2673,6 @@ impl State {
             fee_tier,
         } = args;
 
-        // order_book_state.process_requests(&mut req_q, &mut event_q, std::u16::MAX)?;
         check_assert_eq!(req_q.header.count(), 0)?;
 
         let deposit_amount;
@@ -2754,7 +2754,9 @@ impl State {
         let owner_slot = open_orders.add_order(order_id, instruction.side)?;
         open_orders.client_order_ids[owner_slot as usize] = instruction.client_order_id;
 
-        let request = Request::new(RequestView::NewOrder {
+        let mut proceeds = RequestProceeds::zero();
+
+        let request = RequestView::NewOrder {
             side: instruction.side,
             order_type: instruction.order_type,
             order_id,
@@ -2765,12 +2767,10 @@ impl State {
             max_coin_qty: instruction.max_coin_qty,
             native_pc_qty_locked,
             client_order_id: NonZeroU64::new(instruction.client_order_id),
-        });
-        req_q
-            .push_back(request)
-            .map_err(|_| DexErrorCode::RequestQueueFull)?;
-        order_book_state.process_requests(&mut req_q, &mut event_q, std::u16::MAX)?;
-        check_assert_eq!(req_q.header.count(), 0)?;
+        };
+        let mut limit = std::u16::MAX; // TODO get this value from somewhere
+        order_book_state.process_orderbook_request(&request, &mut event_q, &mut proceeds, &mut limit)?;
+        // TODO do something with proceeds
         Ok(())
     }
 
