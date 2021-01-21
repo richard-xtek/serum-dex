@@ -1176,7 +1176,7 @@ pub fn gen_vault_signer_key(
     Ok(Pubkey::default())
 }
 
-#[cfg(not(feature = "fuzz"))]
+#[cfg(not(any(test, feature = "fuzz")))]
 fn invoke_spl_token(
     instruction: &solana_program::instruction::Instruction,
     account_infos: &[AccountInfo],
@@ -1185,7 +1185,7 @@ fn invoke_spl_token(
     solana_program::program::invoke_signed(instruction, account_infos, signers_seeds)
 }
 
-#[cfg(feature = "fuzz")]
+#[cfg(any(test, feature = "fuzz"))]
 fn invoke_spl_token(
     instruction: &solana_program::instruction::Instruction,
     account_infos: &[AccountInfo],

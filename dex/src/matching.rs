@@ -12,7 +12,6 @@ use crate::critbit::SlabTreeError;
 use crate::error::{DexErrorCode, DexResult, SourceFileId};
 use crate::{
     critbit::{LeafNode, NodeHandle, Slab, SlabView},
-    error::DexError,
     fees::{self, FeeTier},
     state::{
         Event, EventQueue, EventView, MarketState, OpenOrders, RequestView,
