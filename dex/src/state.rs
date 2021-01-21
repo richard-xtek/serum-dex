@@ -31,10 +31,9 @@ use crate::{
     instruction::{
         disable_authority, fee_sweeper, msrm_token, srm_token, CancelOrderInstruction,
         CancelOrderInstructionV2, InitializeMarketInstruction, MarketInstruction,
-        NewOrderInstructionV2, NewOrderInstructionV3, SelfTradeBehavior,
-        SendTakeInstruction,
+        NewOrderInstructionV2, NewOrderInstructionV3, SelfTradeBehavior, SendTakeInstruction,
     },
-    matching::{OrderBookState, OrderType, Side, RequestProceeds},
+    matching::{OrderBookState, OrderType, RequestProceeds, Side},
 };
 
 declare_check_assert_macros!(SourceFileId::State);
@@ -1040,7 +1039,8 @@ impl Event {
                 } else {
                     0
                 };
-                let event_flags = (EventFlag::from_side(side) | EventFlag::Out).bits() | release_funds_flag;
+                let event_flags =
+                    (EventFlag::from_side(side) | EventFlag::Out).bits() | release_funds_flag;
                 Event {
                     event_flags,
                     owner_slot,
@@ -1547,7 +1547,9 @@ pub mod account_parser {
             let mut market: RefMut<'a, MarketState> = MarketState::load(market_acc, program_id)?;
 
             let signer = SignerAccount::new(signer_acc)?;
-            let fee_tier = market.load_fee_tier(&signer.inner().key.to_aligned_bytes(), srm_or_msrm_account).or(check_unreachable!())?;
+            let fee_tier = market
+                .load_fee_tier(&signer.inner().key.to_aligned_bytes(), srm_or_msrm_account)
+                .or(check_unreachable!())?;
             let req_q = market.load_request_queue_mut(req_q_acc)?;
             let event_q = market.load_event_queue_mut(event_q_acc)?;
 
@@ -2570,7 +2572,8 @@ impl State {
                             open_orders.native_coin_total += native_qty_received;
                             open_orders.native_coin_free += native_qty_received;
 
-                            if maker { // TODO redundant, remove after proceeds logic is written
+                            if maker {
+                                // TODO redundant, remove after proceeds logic is written
                                 open_orders.native_pc_free += native_fee_or_rebate;
                             }
                         }
@@ -2579,7 +2582,7 @@ impl State {
                             open_orders.native_pc_total += native_qty_received;
                             open_orders.native_pc_free += native_qty_received;
                         }
-                        _ => ()
+                        _ => (),
                     };
                     if !maker {
                         let referrer_rebate = fees::referrer_rebate(native_fee_or_rebate);
@@ -2758,7 +2761,12 @@ impl State {
             client_order_id: NonZeroU64::new(instruction.client_order_id),
         };
         let mut limit = std::u16::MAX; // TODO get this value from somewhere
-        order_book_state.process_orderbook_request(&request, &mut event_q, &mut proceeds, &mut limit)?;
+        order_book_state.process_orderbook_request(
+            &request,
+            &mut event_q,
+            &mut proceeds,
+            &mut limit,
+        )?;
 
         {
             let coin_lot_size = order_book_state.market_state.coin_lot_size;
@@ -2777,7 +2785,7 @@ impl State {
             let native_coin_unlocked = coin_unlocked.checked_mul(coin_lot_size).unwrap();
             let native_coin_credit = coin_credit.checked_mul(coin_lot_size).unwrap();
             let native_coin_debit = coin_debit.checked_mul(coin_lot_size).unwrap();
-            
+
             open_orders.credit_locked_coin(native_coin_credit);
             open_orders.unlock_coin(native_coin_credit);
             open_orders.unlock_coin(native_coin_unlocked);
@@ -2786,12 +2794,12 @@ impl State {
             open_orders.unlock_pc(native_pc_credit);
             open_orders.unlock_pc(native_pc_unlocked);
 
-            open_orders.native_coin_total =
-                open_orders.native_coin_total
+            open_orders.native_coin_total = open_orders
+                .native_coin_total
                 .checked_sub(native_coin_debit)
                 .unwrap();
-            open_orders.native_pc_total =
-                open_orders.native_pc_total
+            open_orders.native_pc_total = open_orders
+                .native_pc_total
                 .checked_sub(native_pc_debit)
                 .unwrap();
             check_assert!(open_orders.native_coin_free <= open_orders.native_coin_total)?;

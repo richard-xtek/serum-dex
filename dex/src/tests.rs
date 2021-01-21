@@ -263,7 +263,8 @@ fn test_new_order() {
         new_dex_owned_account(&mut rng, size_of::<OpenOrders>(), dex_program_id, &bump);
     let orders_account_seller =
         new_dex_owned_account(&mut rng, size_of::<OpenOrders>(), dex_program_id, &bump);
-    let coin_account = new_token_account(&mut rng, accounts.coin_mint.key, owner.key, 10_000, &bump);
+    let coin_account =
+        new_token_account(&mut rng, accounts.coin_mint.key, owner.key, 10_000, &bump);
     let pc_account = new_token_account(&mut rng, accounts.pc_mint.key, owner.key, 1_000_000, &bump);
     let spl_token_program = new_spl_token_program(&bump);
 
@@ -335,7 +336,10 @@ fn test_new_order() {
         let market = MarketState::load(&accounts.market, &dex_program_id).unwrap();
         assert_eq!(identity(market.referrer_rebates_accrued), 176);
         assert_eq!(identity(market.pc_fees_accrued), 584);
-        assert_eq!(market.pc_fees_accrued + market.pc_deposits_total + market.referrer_rebates_accrued, 520_000);
+        assert_eq!(
+            market.pc_fees_accrued + market.pc_deposits_total + market.referrer_rebates_accrued,
+            520_000
+        );
     }
     {
         let open_orders_buyer = MarketState::load(&accounts.market, &dex_program_id)
@@ -375,8 +379,10 @@ fn test_new_order() {
         let market = MarketState::load(&accounts.market, &dex_program_id).unwrap();
         assert_eq!(identity(market.referrer_rebates_accrued), 176);
         assert_eq!(identity(market.pc_fees_accrued), 584);
-        assert_eq!(market.pc_deposits_total + market.pc_fees_accrued + market.referrer_rebates_accrued,
-            520_000);
+        assert_eq!(
+            market.pc_deposits_total + market.pc_fees_accrued + market.referrer_rebates_accrued,
+            520_000
+        );
     }
     {
         let open_orders_buyer = MarketState::load(&accounts.market, &dex_program_id)

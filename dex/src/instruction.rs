@@ -899,7 +899,9 @@ mod fuzzing {
                 side: value.side,
                 limit_price: value.limit_price.try_into()?,
                 max_coin_qty: value.max_coin_qty.try_into()?,
-                max_native_pc_qty_including_fees: value.max_native_pc_qty_including_fees.try_into()?,
+                max_native_pc_qty_including_fees: value
+                    .max_native_pc_qty_including_fees
+                    .try_into()?,
                 min_coin_qty: value.min_coin_qty,
                 min_native_pc_qty: value.min_native_pc_qty,
                 limit: value.limit,
@@ -1025,14 +1027,10 @@ mod fuzzing {
 
                 fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
                     let x: $TU64 = self.into();
-                    Box::new(
-                        x.shrink()
-                            .map($TU64::try_into)
-                            .filter_map(Result::ok),
-                    )
+                    Box::new(x.shrink().map($TU64::try_into).filter_map(Result::ok))
                 }
             }
-        }
+        };
     }
 
     arbitrary_impl!(SendTakeInstruction, SendTakeInstructionU64);

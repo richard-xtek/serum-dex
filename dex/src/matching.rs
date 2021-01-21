@@ -13,9 +13,7 @@ use crate::error::{DexErrorCode, DexResult, SourceFileId};
 use crate::{
     critbit::{LeafNode, NodeHandle, Slab, SlabView},
     fees::{self, FeeTier},
-    state::{
-        Event, EventQueue, EventView, MarketState, OpenOrders, RequestView,
-    },
+    state::{Event, EventQueue, EventView, MarketState, OpenOrders, RequestView},
 };
 
 #[cfg(not(feature = "program"))]
@@ -110,19 +108,17 @@ impl<'ob> OrderBookState<'ob> {
                     proceeds,
                     limit,
                 )?
-                .map(|remaining| {
-                    RequestView::NewOrder {
-                        side,
-                        order_type,
-                        order_id,
-                        owner_slot,
-                        fee_tier,
-                        owner,
-                        max_coin_qty: remaining.coin_qty_remaining,
-                        native_pc_qty_locked: remaining.native_pc_qty_remaining,
-                        client_order_id,
-                        self_trade_behavior,
-                    }
+                .map(|remaining| RequestView::NewOrder {
+                    side,
+                    order_type,
+                    order_id,
+                    owner_slot,
+                    fee_tier,
+                    owner,
+                    max_coin_qty: remaining.coin_qty_remaining,
+                    native_pc_qty_locked: remaining.native_pc_qty_remaining,
+                    client_order_id,
+                    self_trade_behavior,
                 }),
             RequestView::CancelOrder {
                 side,
@@ -163,7 +159,7 @@ macro_rules! impl_incr_method {
         fn $method(&mut self, $var: u64) {
             self.$var = self.$var.checked_add($var).unwrap();
         }
-    }
+    };
 }
 
 impl RequestProceeds {
