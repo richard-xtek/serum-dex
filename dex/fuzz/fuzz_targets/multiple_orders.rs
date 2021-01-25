@@ -103,12 +103,14 @@ impl<'bump> Owner<'bump> {
             signer_account.key,
             INITIAL_COIN_BALANCE,
             &bump,
+            market_accounts.rent(),
         );
         let pc_account = new_token_account(
             market_accounts.pc_mint.key,
             signer_account.key,
             INITIAL_PC_BALANCE,
             &bump,
+            market_accounts.rent(),
         );
         Self {
             signer_account,
@@ -128,7 +130,7 @@ impl<'bump> Referrer<'bump> {
     fn new(market_accounts: &MarketAccounts<'bump>, bump: &'bump Bump) -> Self {
         let signer_account = new_sol_account(10, &bump);
         let pc_account =
-            new_token_account(market_accounts.pc_mint.key, signer_account.key, 0, &bump);
+            new_token_account(market_accounts.pc_mint.key, signer_account.key, 0, &bump, market_accounts.rent());
         Self { pc_account }
     }
 }
@@ -220,6 +222,7 @@ fn run_actions(actions: Vec<Action>) {
             }
             _ => load_orders_result.unwrap(),
         };
+        assert_eq!(identity(open_orders.free_slot_bits), !0);
         assert_eq!(identity(open_orders.native_coin_free), 0);
         assert_eq!(identity(open_orders.native_coin_total), 0);
         assert_eq!(identity(open_orders.native_pc_free), 0);

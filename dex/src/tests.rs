@@ -99,7 +99,7 @@ fn new_dex_owned_account<'bump, Gen: Rng>(
         random_pubkey(rng, bump),
         false,
         true,
-        bump.alloc(100_000_000),
+        bump.alloc(60_000_000_000),
         allocate_dex_owned_account(unpadded_len, bump),
         program_id,
         false,
@@ -116,7 +116,7 @@ fn new_token_mint<'bump, Gen: Rng>(rng: &mut Gen, bump: &'bump Bump) -> AccountI
         random_pubkey(rng, bump),
         false,
         true,
-        bump.alloc(0),
+        bump.alloc(10_000_000),
         data,
         &spl_token::ID,
         false,
@@ -142,7 +142,7 @@ fn new_token_account<'bump, Gen: Rng>(
         random_pubkey(rng, bump),
         false,
         true,
-        bump.alloc(0),
+        bump.alloc(10_000_000),
         data,
         &spl_token::ID,
         false,
@@ -222,6 +222,7 @@ fn setup_market<'bump, R: Rng>(rng: &mut R, bump: &'bump Bump) -> MarketAccounts
             pc_vault.clone(),
             coin_mint.clone(),
             pc_mint.clone(),
+            rent_sysvar.clone(),
         ]
         .into_bump_slice_mut();
         State::process(&program_id, accounts, &init_instruction.data).unwrap();

@@ -156,7 +156,8 @@ pub(crate) struct RequestProceeds {
 
 macro_rules! impl_incr_method {
     ($method:ident, $var:ident) => {
-        fn $method(&mut self, $var: u64) {
+        #[allow(unused)]
+        pub(crate) fn $method(&mut self, $var: u64) {
             self.$var = self.$var.checked_add($var).unwrap();
         }
     };
@@ -222,14 +223,19 @@ impl<'ob> OrderBookState<'ob> {
             client_order_id,
             self_trade_behavior,
         } = params;
-        let (post_only, post_allowed) = match order_type {
+        let (mut post_only, mut post_allowed) = match order_type {
             OrderType::Limit => (false, true),
             OrderType::ImmediateOrCancel => (false, false),
             OrderType::PostOnly => (true, true),
         };
         let limit_price = extract_price_from_order_id(order_id);
-        while *limit > 0 {
-            *limit -= 1;
+        loop {
+            if *limit == 0 {
+                // Stop matching and release funds if we're out of cycles
+                post_only = true;
+                post_allowed = true;
+            }
+
             let remaining_order = match side {
                 Side::Bid => self.new_bid(
                     NewBidParams {
@@ -271,15 +277,15 @@ impl<'ob> OrderBookState<'ob> {
             if *limit == 0 {
                 return Ok(remaining_order);
             }
+            *limit -= 1;
             match remaining_order {
                 Some(remaining_order) => {
                     max_coin_qty = remaining_order.coin_qty_remaining;
                     native_pc_qty_locked = remaining_order.native_pc_qty_remaining;
                 }
-                None => break,
+                None => return Ok(None),
             };
         }
-        Ok(None)
     }
 }
 

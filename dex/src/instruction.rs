@@ -95,7 +95,7 @@ pub struct SendTakeInstruction {
     pub min_coin_qty: u64,
     pub min_native_pc_qty: u64,
 
-    pub limit: u16, // zero means unlimited (TODO implement this meaning)
+    pub limit: u16,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -124,7 +124,7 @@ pub struct NewOrderInstructionV3 {
 
     pub order_type: OrderType,
     pub client_order_id: u64,
-    pub limit: u16, // zero means unlimited (TODO implement this meaning)
+    pub limit: u16,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
@@ -329,6 +329,7 @@ pub enum MarketInstruction {
     /// 6. `[writable]` spl-token account for the price currency
     /// 7. `[]` coin currency Mint
     /// 8. `[]` price currency Mint
+    /// 9. `[]` the rent sysvar
     InitializeMarket(InitializeMarketInstruction),
     /// 0. `[writable]` the market
     /// 1. `[writable]` the OpenOrders account to use
@@ -576,6 +577,8 @@ pub fn initialize_market(
     let coin_mint = AccountMeta::new_readonly(*coin_mint_pk, false);
     let pc_mint = AccountMeta::new_readonly(*pc_mint_pk, false);
 
+    let rent_sysvar = AccountMeta::new_readonly(solana_program::sysvar::rent::ID, false);
+
     let accounts = vec![
         market_account,
         req_q,
@@ -588,6 +591,7 @@ pub fn initialize_market(
         coin_mint,
         pc_mint,
         //srm_mint,
+        rent_sysvar,
     ];
 
     Ok(Instruction {
