@@ -30,11 +30,13 @@ dex_whole_shebang() {
     #
     # Build the program.
     #
-    ./do.sh build dex
+    pushd dex
+    cargo build-bpf
+    popd
     #
     # Deploy the program.
     #
-    local dex_program_id="$(solana deploy --url ${CLUSTER_URL} dex/target/bpfel-unknown-unknown/release/serum_dex.so --use-deprecated-loader | jq .programId -r)"
+    local dex_program_id="$(solana deploy --url ${CLUSTER_URL} dex/target/deploy/serum_dex.so --use-deprecated-loader | jq .ProgramId -r)"
     #
     # Run the whole-shebang.
     #
